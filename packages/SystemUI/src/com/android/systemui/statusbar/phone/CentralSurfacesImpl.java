@@ -320,6 +320,8 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
             Settings.Secure.PULSE_ON_NEW_TRACKS;
     private static final String NAVIGATION_BAR_SHOW =
             "system:" + Settings.System.NAVIGATION_BAR_SHOW;
+    private static final String DISPLAY_CUTOUT_HIDDEN =
+            "system:" + Settings.System.DISPLAY_CUTOUT_HIDDEN;
 
     private static final int MSG_OPEN_SETTINGS_PANEL = 1002;
     private static final int MSG_LAUNCH_TRANSITION_TIMEOUT = 1003;
@@ -786,6 +788,9 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
 
     private final SysUiState mSysUiState;
 
+    private boolean mDisplayCutoutHidden;
+    private Handler mRefreshNavbarHandler;
+
     /**
      * Public constructor for CentralSurfaces.
      *
@@ -895,7 +900,8 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
             ActivityStarter activityStarter,
             TunerService tunerService,
             SysUiState sysUiState,
-            BurnInProtectionController burnInProtectionController
+            BurnInProtectionController burnInProtectionController,
+            @Main Handler refreshNavbarHandler
     ) {
         mContext = context;
         mNotificationsController = notificationsController;
@@ -992,6 +998,7 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
         mStartingSurfaceOptional = startingSurfaceOptional;
         mDreamManager = dreamManager;
         mTunerService = tunerService;
+        mRefreshNavbarHandler = refreshNavbarHandler;
         lockscreenShadeTransitionController.setCentralSurfaces(this);
         statusBarWindowStateController.addListener(this::onStatusBarWindowStateChanged);
 
@@ -1067,6 +1074,7 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
         mTunerService.addTunable(this, STATUS_BAR_BRIGHTNESS_CONTROL);
         mTunerService.addTunable(this, PULSE_ON_NEW_TRACKS);
         mTunerService.addTunable(this, NAVIGATION_BAR_SHOW);
+        mTunerService.addTunable(this, DISPLAY_CUTOUT_HIDDEN);
 
         mWindowManager = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
 
@@ -2064,6 +2072,36 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
     @Override
     public void setBarStateForTest(int state) {
         mState = state;
+    }
+
+    private void updateCutoutOverlay(boolean displayCutoutHidden) {
+        boolean needsRefresh = mDisplayCutoutHidden != displayCutoutHidden;
+        mDisplayCutoutHidden = displayCutoutHidden;
+        try {
+            mOverlayManager.setEnabled("org.pixelexperience.overlay.hidecutout",
+                        mDisplayCutoutHidden, mLockscreenUserManager.getCurrentUserId());
+        } catch (RemoteException ignored) {
+        }
+        if (needsRefresh){
+            refreshNavbarOverlay();
+        }
+    }
+
+    private void refreshNavbarOverlay() {
+        final String overlayPackageName = "org.pixelexperience.overlay.dummycutout";
+        try{
+            mOverlayManager.setEnabled(overlayPackageName,
+                false, UserHandle.USER_CURRENT);
+        } catch (RemoteException ignored) {
+        }
+        mRefreshNavbarHandler.removeCallbacksAndMessages(null);
+        mRefreshNavbarHandler.postDelayed(() -> {
+            try{
+                mOverlayManager.setEnabled(overlayPackageName,
+                    true, UserHandle.USER_CURRENT);
+            } catch (RemoteException ignored) {
+            }
+        }, 1000);
     }
 
     static class AnimateExpandSettingsPanelMessage {
@@ -4106,6 +4144,9 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces, Tune
                         mNavigationBarController.onDisplayRemoved(mDisplayId);
                     }
                 }
+                break;
+            case DISPLAY_CUTOUT_HIDDEN:
+                updateCutoutOverlay(TunerService.parseIntegerSwitch(newValue, false));
                 break;
             default:
                 break;
