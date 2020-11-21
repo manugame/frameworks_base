@@ -503,4 +503,10 @@
     <!-- Indicates that the device has Single-stage Camera key
          (without "Focus" state) instead of Dual-stage. -->
     <bool name="config_singleStageCameraKey">false</bool>
+
+    <!-- Whether device has a physical display cutout -->
+    <bool name="config_physicalDisplayCutout">false</bool>
+
+    <!-- Whether device has a centered display cutout -->
+    <bool name="config_physicalDisplayCutoutCentered">@bool/config_physicalDisplayCutout</bool>
 </resources>
