@@ -89,6 +89,7 @@ import static com.android.server.wm.WindowManagerPolicyProto.ROTATION_MODE;
 import static com.android.server.wm.WindowManagerPolicyProto.SCREEN_ON_FULLY;
 import static com.android.server.wm.WindowManagerPolicyProto.WINDOW_MANAGER_DRAW_COMPLETE;
 
+import static com.android.internal.util.custom.ActionUtils;
 import static com.android.internal.util.custom.hwkeys.DeviceKeysConstants.*;
 
 import android.accessibilityservice.AccessibilityService;
@@ -2074,11 +2075,20 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             case VOICE_SEARCH:
                 launchAssistLongPressAction();
               break;
+            case IN_APP_SEARCH:
+                triggerVirtualKeypress(KeyEvent.KEYCODE_SEARCH);
+                break;
             case LAUNCH_CAMERA:
                 launchCameraAction();
                 break;
             case SLEEP:
                 mPowerManager.goToSleep(SystemClock.uptimeMillis());
+                break;
+            case LAST_APP:
+                ActionUtils.switchToLastApp(mContext, mCurrentUserId);
+                break;
+            case KILL_APP:
+                ActionUtils.killForegroundApp(mContext, mCurrentUserId);
                 break;
             case SCREENSHOT:
                 interceptScreenshotChord(SCREENSHOT_KEY_OTHER, 0 /*pressDelay*/);
